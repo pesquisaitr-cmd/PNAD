@@ -1,0 +1,462 @@
+"""
+Dashboard Interativo PNAD/CAGED - Análise de Salários e Diversidade
+Autor: Professor Dulluca
+Data: 2026
+Descrição: Dashboard Streamlit para visualização de dados de salários, movimentação e diversidade
+           no mercado de trabalho brasileiro, utilizando df_final.parquet e df_inpc.
+"""
+
+import streamlit as st
+import pandas as pd
+import numpy as np
+import plotly.express as px
+import plotly.graph_objects as go
+from datetime import datetime
+import os
+from io import BytesIO
+
+# ============================================================================
+# CONFIGURAÇÃO DA PÁGINA STREAMLIT
+# ============================================================================
+
+st.set_page_config(
+    page_title="Dashboard PNAD/CAGED",
+    page_icon="📊",
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
+
+# Estilo CSS customizado
+st.markdown("""
+    <style>
+    .main {
+        padding: 2rem;
+    }
+    .metric-card {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 1.5rem;
+        border-radius: 0.75rem;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+    .stMetric {
+        background-color: #f0f2f6;
+        padding: 1rem;
+        border-radius: 0.5rem;
+    }
+    </style>
+    """, unsafe_allow_html=True)
+
+# ============================================================================
+# TÍTULO E DESCRIÇÃO
+# ============================================================================
+
+st.title("📊 Dashboard Interativo PNAD/CAGED")
+st.markdown("""
+    **Análise de Salários, Movimentação e Diversidade no Mercado de Trabalho Brasileiro**
+    
+    Este dashboard permite explorar dados de admissões e demissões por região, estado, município, ocupação (CBO),
+    gênero e raça/cor, com visualizações interativas de salários médios e movimentação de pessoal.
+""")
+
+# ============================================================================
+# CARREGAMENTO DE DADOS
+# ============================================================================
+
+@st.cache_data
+def carregar_dados():
+    """
+    Carrega os arquivos df_final.parquet e df_inpc.
+    Ajuste os caminhos conforme necessário (local, Google Drive, GitHub, etc.)
+    """
+    try:
+        # Opção 1: Carregar do arquivo local
+        df_final = pd.read_parquet("df_final.parquet")
+        df_inpc = pd.read_csv("df_inpc.csv")  # Assumindo que df_inpc está em formato CSV
+        
+        return df_final, df_inpc
+    except FileNotFoundError:
+        st.error("Arquivos não encontrados. Certifique-se de que df_final.parquet e df_inpc.csv estão no mesmo diretório.")
+        st.stop()
+    except Exception as e:
+        st.error(f"Erro ao carregar os dados: {e}")
+        st.stop()
+
+# Carregar dados
+df_final, df_inpc = carregar_dados()
+
+# ============================================================================
+# PRÉ-PROCESSAMENTO DE DADOS
+# ============================================================================
+
+# Garantir que df_inpc tem a coluna Anomes
+if "Anomes" not in df_inpc.columns:
+    if "ano" in df_inpc.columns and "mes" in df_inpc.columns:
+        df_inpc["Anomes"] = df_inpc["ano"].astype(str) + df_inpc["mes"].astype(str).str.zfill(2)
+    else:
+        st.error("df_inpc não possui as colunas esperadas (Anomes ou ano/mes).")
+        st.stop()
+
+# Calcular INPC acumulado
+df_inpc = df_inpc.sort_values("Anomes")
+df_inpc["inpc_fator"] = 1 + df_inpc["inpc_val"] / 100
+df_inpc["inpc_acm"] = df_inpc["inpc_fator"].cumprod()
+
+# Preparar df_final
+df_final["Anomes"] = df_final["competênciamov"].astype(str)
+
+# Merge com INPC para deflacionamento
+df_final = pd.merge(df_final, df_inpc[["Anomes", "inpc_acm"]], on="Anomes", how="left")
+df_final["Sal_def_INPC"] = df_final["salário"] / df_final["inpc_acm"]
+
+# Extrair ano e mês
+df_final["ano"] = df_final["Anomes"].astype(str).str[:4].astype(int)
+df_final["mes"] = df_final["Anomes"].astype(str).str[4:6].astype(int)
+df_final["mes_nome"] = df_final["mes"].map({
+    1: "Janeiro", 2: "Fevereiro", 3: "Março", 4: "Abril", 5: "Maio", 6: "Junho",
+    7: "Julho", 8: "Agosto", 9: "Setembro", 10: "Outubro", 11: "Novembro", 12: "Dezembro"
+})
+
+# Criar coluna de período
+df_final["periodo"] = df_final["ano"].astype(str) + "-" + df_final["mes"].astype(str).str.zfill(2)
+
+# Mapear códigos para nomes (se ainda não estiverem mapeados)
+if df_final["região"].dtype == "int64":
+    mapa_regiao = {1: "Norte", 2: "Nordeste", 3: "Sudeste", 4: "Sul", 5: "Centro-Oeste"}
+    df_final["nome_regiao"] = df_final["região"].map(mapa_regiao)
+else:
+    df_final["nome_regiao"] = df_final["região"]
+
+if df_final["uf"].dtype == "int64":
+    mapa_uf = {
+        11: "RO", 12: "AC", 13: "AM", 14: "RR", 15: "PA", 16: "AP", 17: "TO",
+        21: "MA", 22: "PI", 23: "CE", 24: "RN", 25: "PB", 26: "PE", 27: "AL", 28: "SE", 29: "BA",
+        31: "MG", 32: "ES", 33: "RJ", 35: "SP",
+        41: "PR", 42: "SC", 43: "RS",
+        50: "MS", 51: "MT", 52: "GO", 53: "DF"
+    }
+    df_final["sigla_uf"] = df_final["uf"].map(mapa_uf)
+else:
+    df_final["sigla_uf"] = df_final["uf"]
+
+if "município" in df_final.columns:
+    df_final["nome_municipio"] = df_final["município"].astype(str)
+
+# Mapear saldomovimentação
+if "saldomovimentação" in df_final.columns:
+    mapa_contrato = {-1: "Demitidos", 1: "Admitidos"}
+    df_final["contrato"] = df_final["saldomovimentação"].map(mapa_contrato)
+
+# Mapear sexo
+if "sexo" in df_final.columns:
+    mapa_sexo = {1: "Masculino", 3: "Feminino", 9: "Não Identificado"}
+    df_final["genero"] = df_final["sexo"].map(mapa_sexo)
+
+# Mapear raça/cor
+if "raçacor" in df_final.columns:
+    mapa_raca = {
+        1: "Branca", 2: "Preta", 3: "Parda", 4: "Amarela",
+        5: "Indígena", 6: "Não Informado", 9: "Não Identificado"
+    }
+    df_final["etnia"] = df_final["raçacor"].map(mapa_raca)
+
+# ============================================================================
+# SIDEBAR - FILTROS INTERATIVOS
+# ============================================================================
+
+st.sidebar.header("🔍 Filtros")
+
+# Filtro de Período (Ano e Mês)
+st.sidebar.subheader("Período")
+anos_disponiveis = sorted(df_final["ano"].unique())
+ano_selecionado = st.sidebar.selectbox("Selecione o Ano", anos_disponiveis, key="ano")
+
+meses_ano = sorted(df_final[df_final["ano"] == ano_selecionado]["mes"].unique())
+meses_nomes = [df_final[df_final["mes"] == m]["mes_nome"].iloc[0] for m in meses_ano]
+mes_selecionado_idx = st.sidebar.selectbox(
+    "Selecione o Mês", 
+    range(len(meses_nomes)), 
+    format_func=lambda x: meses_nomes[x], 
+    key="mes"
+)
+mes_selecionado = meses_ano[mes_selecionado_idx]
+
+# Filtro de Região
+st.sidebar.subheader("Localização")
+regioes_disponiveis = sorted(df_final["nome_regiao"].unique())
+regiao_selecionada = st.sidebar.selectbox("Selecione a Região", ["Todas"] + regioes_disponiveis, key="regiao")
+
+# Filtro de UF (dependente da Região)
+if regiao_selecionada == "Todas":
+    ufs_disponiveis = sorted(df_final["sigla_uf"].unique())
+else:
+    ufs_disponiveis = sorted(df_final[df_final["nome_regiao"] == regiao_selecionada]["sigla_uf"].unique())
+
+uf_selecionada = st.sidebar.selectbox("Selecione o UF", ["Todos"] + ufs_disponiveis, key="uf")
+
+# Filtro de Município (dependente da UF)
+if uf_selecionada == "Todos":
+    municipios_disponiveis = sorted(df_final["nome_municipio"].unique())
+else:
+    municipios_disponiveis = sorted(df_final[df_final["sigla_uf"] == uf_selecionada]["nome_municipio"].unique())
+
+municipio_selecionado = st.sidebar.selectbox("Selecione o Município", ["Todos"] + municipios_disponiveis, key="municipio")
+
+# Filtro de CBO
+st.sidebar.subheader("Ocupação")
+cbos_disponiveis = sorted(df_final["cbo2002ocupação"].unique())
+cbo_selecionado = st.sidebar.selectbox("Selecione o CBO", ["Todos"] + cbos_disponiveis, key="cbo")
+
+# Filtro de Diversidade
+st.sidebar.subheader("Diversidade")
+if "genero" in df_final.columns:
+    generos_disponiveis = sorted(df_final["genero"].unique())
+    genero_selecionado = st.sidebar.selectbox("Selecione o Gênero", ["Todos"] + generos_disponiveis, key="genero")
+else:
+    genero_selecionado = "Todos"
+
+if "etnia" in df_final.columns:
+    etnias_disponiveis = sorted(df_final["etnia"].unique())
+    etnia_selecionada = st.sidebar.selectbox("Selecione a Etnia", ["Todos"] + etnias_disponiveis, key="etnia")
+else:
+    etnia_selecionada = "Todos"
+
+# ============================================================================
+# APLICAR FILTROS
+# ============================================================================
+
+df_filtrado = df_final[
+    (df_final["ano"] == ano_selecionado) &
+    (df_final["mes"] == mes_selecionado)
+].copy()
+
+if regiao_selecionada != "Todas":
+    df_filtrado = df_filtrado[df_filtrado["nome_regiao"] == regiao_selecionada]
+
+if uf_selecionada != "Todos":
+    df_filtrado = df_filtrado[df_filtrado["sigla_uf"] == uf_selecionada]
+
+if municipio_selecionado != "Todos":
+    df_filtrado = df_filtrado[df_filtrado["nome_municipio"] == municipio_selecionado]
+
+if cbo_selecionado != "Todos":
+    df_filtrado = df_filtrado[df_filtrado["cbo2002ocupação"] == cbo_selecionado]
+
+if genero_selecionado != "Todos" and "genero" in df_filtrado.columns:
+    df_filtrado = df_filtrado[df_filtrado["genero"] == genero_selecionado]
+
+if etnia_selecionada != "Todos" and "etnia" in df_filtrado.columns:
+    df_filtrado = df_filtrado[df_filtrado["etnia"] == etnia_selecionada]
+
+# ============================================================================
+# MÉTRICAS PRINCIPAIS (KPIs)
+# ============================================================================
+
+st.subheader("📈 Indicadores Principais")
+
+col1, col2, col3, col4 = st.columns(4)
+
+with col1:
+    if "contrato" in df_filtrado.columns:
+        total_admitidos = len(df_filtrado[df_filtrado["contrato"] == "Admitidos"])
+    else:
+        total_admitidos = len(df_filtrado[df_filtrado["saldomovimentação"] == 1])
+    st.metric("Total Admitidos", f"{int(total_admitidos):,}")
+
+with col2:
+    if "contrato" in df_filtrado.columns:
+        total_demitidos = len(df_filtrado[df_filtrado["contrato"] == "Demitidos"])
+    else:
+        total_demitidos = len(df_filtrado[df_filtrado["saldomovimentação"] == -1])
+    st.metric("Total Demitidos", f"{int(total_demitidos):,}")
+
+with col3:
+    saldo = total_admitidos - total_demitidos
+    st.metric("Saldo de Movimentação", f"{int(saldo):,}")
+
+with col4:
+    media_salarial = df_filtrado["salário"].mean()
+    st.metric("Salário Médio", f"R$ {media_salarial:,.2f}")
+
+# ============================================================================
+# GRÁFICOS PRINCIPAIS
+# ============================================================================
+
+st.subheader("📊 Visualizações Interativas")
+
+tab1, tab2, tab3, tab4, tab5 = st.tabs(
+    ["Salários por Movimentação", "Movimentação por Região", "Movimentação por Gênero",
+     "Movimentação por Etnia", "Análise Comparativa"]
+)
+
+with tab1:
+    st.markdown("**Média Salarial (Nominal e Deflacionada) por Tipo de Movimentação**")
+    
+    if "contrato" in df_filtrado.columns:
+        df_media_contrato = df_filtrado.groupby("contrato").agg({
+            "salário": "mean",
+            "Sal_def_INPC": "mean"
+        }).reset_index()
+        
+        fig1 = go.Figure()
+        fig1.add_trace(go.Bar(
+            x=df_media_contrato["contrato"],
+            y=df_media_contrato["salário"],
+            name="Salário Nominal",
+            marker_color="lightblue"
+        ))
+        fig1.add_trace(go.Bar(
+            x=df_media_contrato["contrato"],
+            y=df_media_contrato["Sal_def_INPC"],
+            name="Salário Deflacionado (INPC)",
+            marker_color="darkblue"
+        ))
+        fig1.update_layout(
+            title="Comparação de Salários por Tipo de Movimentação",
+            xaxis_title="Tipo de Movimentação",
+            yaxis_title="Salário (R$)",
+            barmode="group",
+            height=400
+        )
+        st.plotly_chart(fig1, use_container_width=True)
+
+with tab2:
+    st.markdown("**Contagem de Movimentações por Região**")
+    
+    if "contrato" in df_filtrado.columns and "nome_regiao" in df_filtrado.columns:
+        df_regiao = df_filtrado.groupby(["nome_regiao", "contrato"]).size().reset_index(name="quantidade")
+        
+        fig2 = px.bar(
+            df_regiao,
+            x="nome_regiao",
+            y="quantidade",
+            color="contrato",
+            title="Movimentação de Pessoal por Região",
+            labels={"nome_regiao": "Região", "quantidade": "Quantidade"},
+            barmode="group",
+            color_discrete_map={"Admitidos": "#2ecc71", "Demitidos": "#e74c3c"}
+        )
+        fig2.update_layout(height=400)
+        st.plotly_chart(fig2, use_container_width=True)
+
+with tab3:
+    st.markdown("**Contagem de Movimentações por Gênero**")
+    
+    if "genero" in df_filtrado.columns:
+        df_genero = df_filtrado.groupby("genero").size().reset_index(name="quantidade")
+        
+        fig3 = px.pie(
+            df_genero,
+            values="quantidade",
+            names="genero",
+            title="Distribuição de Movimentações por Gênero",
+            hole=0.3
+        )
+        fig3.update_layout(height=400)
+        st.plotly_chart(fig3, use_container_width=True)
+
+with tab4:
+    st.markdown("**Contagem de Movimentações por Raça/Cor**")
+    
+    if "etnia" in df_filtrado.columns:
+        df_etnia = df_filtrado.groupby(["etnia", "contrato"]).size().reset_index(name="quantidade")
+        
+        fig4 = px.bar(
+            df_etnia,
+            x="etnia",
+            y="quantidade",
+            color="contrato",
+            title="Movimentação de Pessoal por Raça/Cor",
+            labels={"etnia": "Raça/Cor", "quantidade": "Quantidade"},
+            barmode="stack",
+            color_discrete_map={"Admitidos": "#2ecc71", "Demitidos": "#e74c3c"}
+        )
+        fig4.update_layout(height=400)
+        st.plotly_chart(fig4, use_container_width=True)
+
+with tab5:
+    st.markdown("**Análise Comparativa: Salários vs Movimentação**")
+    
+    if "contrato" in df_filtrado.columns:
+        df_comparativo = df_filtrado.groupby("contrato").agg({
+            "salário": "mean",
+            "Anomes": "count"
+        }).reset_index().rename(columns={"Anomes": "quantidade"})
+        
+        fig5 = go.Figure()
+        fig5.add_trace(go.Scatter(
+            x=df_comparativo["contrato"],
+            y=df_comparativo["salário"],
+            mode="lines+markers",
+            name="Salário Médio",
+            yaxis="y1"
+        ))
+        fig5.add_trace(go.Bar(
+            x=df_comparativo["contrato"],
+            y=df_comparativo["quantidade"],
+            name="Quantidade de Movimentações",
+            yaxis="y2",
+            opacity=0.5
+        ))
+        fig5.update_layout(
+            title="Salários vs Movimentação",
+            xaxis_title="Tipo de Movimentação",
+            yaxis=dict(title="Salário (R$)"),
+            yaxis2=dict(title="Quantidade", overlaying="y", side="right"),
+            height=400
+        )
+        st.plotly_chart(fig5, use_container_width=True)
+
+# ============================================================================
+# TABELA DE DADOS DETALHADOS
+# ============================================================================
+
+st.subheader("📋 Dados Detalhados")
+
+if st.checkbox("Mostrar tabela de dados completa", value=False):
+    colunas_exibir = [col for col in ["periodo", "nome_regiao", "sigla_uf", "nome_municipio", 
+                                        "cbo2002ocupação", "contrato", "genero", "etnia", 
+                                        "salário", "Sal_def_INPC"] if col in df_filtrado.columns]
+    st.dataframe(
+        df_filtrado[colunas_exibir].sort_values("periodo", ascending=False),
+        use_container_width=True
+    )
+
+# ============================================================================
+# EXPORTAR DADOS
+# ============================================================================
+
+st.subheader("💾 Exportar Dados")
+
+if st.button("Baixar dados filtrados como CSV"):
+    csv = df_filtrado.to_csv(index=False)
+    st.download_button(
+        label="Download CSV",
+        data=csv,
+        file_name=f"dados_filtrados_{ano_selecionado}_{mes_selecionado:02d}.csv",
+        mime="text/csv"
+    )
+
+if st.button("Baixar dados filtrados como Excel"):
+    buffer = BytesIO()
+    with pd.ExcelWriter(buffer, engine="openpyxl") as writer:
+        df_filtrado.to_excel(writer, index=False, sheet_name="Dados")
+    buffer.seek(0)
+    st.download_button(
+        label="Download Excel",
+        data=buffer.getvalue(),
+        file_name=f"dados_filtrados_{ano_selecionado}_{mes_selecionado:02d}.xlsx",
+        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    )
+
+# ============================================================================
+# RODAPÉ
+# ============================================================================
+
+st.markdown("---")
+st.markdown("""
+    <div style="text-align: center; color: gray; font-size: 12px;">
+        <p>Dashboard desenvolvido por Professor Dulluca | Dados: CAGED/MTPS | Última atualização: 2026</p>
+        <p>Fonte de dados: Ministério do Trabalho e Previdência Social (MTPS) | Índices: INPC/IBGE</p>
+    </div>
+""", unsafe_allow_html=True)

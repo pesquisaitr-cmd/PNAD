@@ -335,3 +335,17 @@ try:
     if __name__ == "__main__":
         port = int(os.environ.get("PORT", 8080))
         app.run(host="0.0.0.0", port=port)
+    from flask import Flask
+    import os
+    
+    app = Flask(__name__)
+    
+    @app.route("/")
+    def hello():
+        return "Aplicação PNAD rodando no Cloud Run!"
+    
+    # 🔽 Essas linhas ficam no final do arquivo
+    if __name__ == "__main__":
+        # Cloud Run define a variável PORT=8080
+        port = int(os.environ.get("PORT", 8080))
+        app.run(host="0.0.0.0", port=port)

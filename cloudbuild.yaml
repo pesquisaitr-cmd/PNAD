@@ -1,5 +1,4 @@
 steps:
- steps:
   # Etapa 1: Build da imagem Docker
   - name: 'gcr.io/cloud-builders/docker'
     args:
@@ -34,9 +33,10 @@ steps:
 # Conta de serviço usada pelo build
 serviceAccount: cloudbuild-deploy@pnad-salarios.iam.gserviceaccount.com
 
-# Configuração de logs (usando bucket real)
+# Configuração de logs
 logsBucket: gs://1043829155645-southamerica-east1-cloudbuild-logs
 
 options:
   logging: LEGACY
+
   

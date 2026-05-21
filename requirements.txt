@@ -6,4 +6,5 @@ pyarrow
 setuptools
 scipy
 matplotlib
-fastparquet
+statsmodels
+openpyxl

@@ -18,6 +18,8 @@ steps:
         '--platform', 'managed',
         '--allow-unauthenticated'
       ]
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['build', '-t', 'gcr.io/$PROJECT_ID/pnad-app:latest', '-f', 'app/Dockerfile', '.']
 
 # Conta de serviço usada pelo build
 serviceAccount: cloudbuild-deploy@pnad-salarios.iam.gserviceaccount.com

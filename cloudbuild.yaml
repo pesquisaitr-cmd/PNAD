@@ -1,6 +1,11 @@
 options:
   logging: CLOUD_LOGGING_ONLY
 logsBucket: gs://SEU_BUCKET_DE_LOGS
+options:
+  logging: LEGACY
+options:
+  defaultLogsBucketBehavior: REGIONAL_USER_OWNED_BUCKET
+
 steps:
   - name: 'gcr.io/cloud-builders/docker'
     args: ['build', '-t', 'southamerica-east1-docker.pkg.dev/pnad-salarios/pnad-app/pnad:$COMMIT_SHA', '.']

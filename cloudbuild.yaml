@@ -1,0 +1,7 @@
+steps:
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['build', '-t', 'southamerica-east1-docker.pkg.dev/pnad-salarios/pnad-app/pnad:$COMMIT_SHA', '.']
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['push', 'southamerica-east1-docker.pkg.dev/pnad-salarios/pnad-app/pnad:$COMMIT_SHA']
+images:
+  - 'southamerica-east1-docker.pkg.dev/pnad-salarios/pnad-app/pnad:$COMMIT_SHA'

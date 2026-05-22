@@ -135,7 +135,7 @@ try:
         mes_selecionado = meses_ano[mes_idx]
 
     with st.sidebar.expander("🗺️ Localização", expanded=True):
-        regioes = sorted(df_final["nome_regiao"].unique())
+        regioes = sorted(df_final["nome_regiao"].dropna().unique())
         regiao = st.selectbox("Região", ["Todas"] + regioes)
 
         if regiao == "Todas":

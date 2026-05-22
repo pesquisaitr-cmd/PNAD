@@ -139,14 +139,14 @@ try:
         regiao = st.selectbox("Região", ["Todas"] + regioes)
 
         if regiao == "Todas":
-            ufs = sorted(df_final["sigla_uf"].unique())
+            ufs = sorted(df_final["sigla_uf"].dropna().unique())
         else:
             ufs = sorted(df_final[df_final["nome_regiao"] == regiao]["sigla_uf"].unique())
 
         uf = st.selectbox("UF", ["Todos"] + ufs)
 
         if uf == "Todos":
-            municipios = sorted(df_final["nome_municipio"].unique())
+            municipios = sorted(df_final["nome_municipio"].dropna().unique())
         else:
             municipios = sorted(df_final[df_final["sigla_uf"] == uf]["nome_municipio"].unique())
 

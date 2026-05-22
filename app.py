@@ -21,7 +21,6 @@ warnings.filterwarnings("ignore")
 # ============================================================================
 # BLOCO DE CAPTURA DE ERROS
 # ============================================================================
-
 try:
 
     # ============================================================================
@@ -309,43 +308,9 @@ try:
         </div>
     """, unsafe_allow_html=True)
 
- 
-    # ============================================================================
-    # CAPTURA DE ERROS
-    # ============================================================================
-    except Exception as e:
-        st.error("❌ Erro ao executar o app:")
-        st.code(traceback.format_exc())
-
-    from flask import Flask
-    import os
-    
-    app = Flask(__name__)
-    
-    @app.route("/")
-    def hello():
-        return "Aplicação PNAD rodando no Cloud Run!"
-    
-    # Se você já tem funções de ETL, pode expor em outras rotas:
-    @app.route("/processar")
-    def processar():
-        resultado = executar_etl()  # exemplo de função que você já tenha
-        return f"Processamento concluído: {resultado}"
-    
-    if __name__ == "__main__":
-        port = int(os.environ.get("PORT", 8080))
-        app.run(host="0.0.0.0", port=port)
-    from flask import Flask
-    import os
-    
-    app = Flask(__name__)
-    
-    @app.route("/")
-    def hello():
-        return "Aplicação PNAD rodando no Cloud Run!"
-    
-    # 🔽 Essas linhas ficam no final do arquivo
-    if __name__ == "__main__":
-        # Cloud Run define a variável PORT=8080
-        port = int(os.environ.get("PORT", 8080))
-        app.run(host="0.0.0.0", port=port)
+# ============================================================================
+# CAPTURA DE ERROS (FIM DO ARQUIVO)
+# ============================================================================
+except Exception as e:
+    st.error("❌ Erro ao executar o app:")
+    st.code(traceback.format_exc())

@@ -36,7 +36,7 @@ try:
     client = bigquery.Client()
     
     # ID da sua View salva no BigQuery
-    VIEW_ID = "pnad-salarios.pnad_dados.dados_completos_view"
+    VIEW_ID = "1043829155645.pnad_dados.dados_completos_view"
 
     st.title("📊 Dashboard Interativo PNAD/CAGED")
     st.markdown("""

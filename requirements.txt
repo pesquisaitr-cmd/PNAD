@@ -5,3 +5,4 @@ plotly
 openpyxl
 pyarrow
 google-cloud-bigquery
+db-dtypes

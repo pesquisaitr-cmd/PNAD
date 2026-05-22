@@ -59,9 +59,11 @@ try:
     @st.cache_data(ttl=86400)  # Cache de 24h para os filtros estruturais
     def obter_valores_filtro(coluna, condicao_sql=""):
         """Busca valores únicos de uma coluna para preencher a barra lateral"""
-        query = f"SELECT DISTINCT {coluna} FROM `{VIEW_ID}` {condicao_sql} WHERE {coluna} IS NOT NULL ORDER BY {coluna}"
+        # Remove crases que possam vir na string para não duplicar
+        coluna_limpa = coluna.replace("`", "")
+        query = f"SELECT DISTINCT `{coluna_limpa}` FROM `{VIEW_ID}` {condicao_sql} WHERE `{coluna_limpa}` IS NOT NULL ORDER BY `{coluna_limpa}`"
         df = executar_query(query)
-        return df[coluna].tolist()
+        return df[coluna_limpa].tolist()
 
     # Mapeamentos mantidos para a exibição visual
     mapa_contrato = {-1: "Demitidos", 1: "Admitidos"}
@@ -79,7 +81,7 @@ try:
 
     with st.sidebar.expander("📅 Período", expanded=True):
         # Extrai os Anomes disponíveis na base
-        lista_anomes_int = obter_valores_filtro("`competênciamov`")
+        lista_anomes_int = obter_valores_filtro("competênciamov")
         lista_anomes_str = [str(x) for x in lista_anomes_int]
         
         # Agrupa anos e meses unicamente
@@ -94,7 +96,7 @@ try:
         anomes_filtro = int(f"{ano_selecionado}{str(mes_selecionado).zfill(2)}")
 
     with st.sidebar.expander("🗺️ Localização", expanded=True):
-        regioes = obter_valores_filtro("`região`")
+        regioes = obter_valores_filtro("região")
         regiao_map_invertido = { "Todas": "Todas", "Norte": 1, "Nordeste": 2, "Sudeste": 3, "Sul": 4, "Centro-Oeste": 5 }
         regiao_exibicao = st.selectbox("Região", ["Todas", "Norte", "Nordeste", "Sudeste", "Sul", "Centro-Oeste"])
         regiao = regiao_map_invertido[regiao_exibicao]
@@ -124,11 +126,11 @@ try:
         elif regiao != "Todas":
             condicao_mun += f" AND `região` = {regiao}"
             
-        municipios = obter_valores_filtro("`município`", condicao_mun)
+        municipios = obter_valores_filtro("município", condicao_mun)
         municipio = st.selectbox("Município", ["Todos"] + municipios)
 
     with st.sidebar.expander("💼 Ocupação"):
-        cbos = obter_valores_filtro("`cbo2002ocupação`")
+        cbos = obter_valores_filtro("cbo2002ocupação")
         cbo = st.selectbox("CBO", ["Todos"] + cbos)
 
     with st.sidebar.expander("🌈 Diversidade"):

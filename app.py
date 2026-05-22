@@ -47,10 +47,10 @@ try:
     # FUNÇÕES DE CONSULTA AO BIGQUERY (COM CACHE)
     # ============================================================================
     @st.cache_data(ttl=3600)
-    def executar_query(query, params=None):
+    def executar_query(query, _params=None):
         """Função auxiliar para executar queries no BigQuery e retornar DataFrame"""
-        if params:
-            job_config = bigquery.QueryJobConfig(query_parameters=params)
+        if _params:
+            job_config = bigquery.QueryJobConfig(query_parameters=_params)
             query_job = client.query(query, job_config=job_config)
         else:
             query_job = client.query(query)

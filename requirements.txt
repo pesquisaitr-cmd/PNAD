@@ -1,10 +1,7 @@
 streamlit
-plotly
 pandas
 numpy
-pyarrow
-setuptools
-scipy
-matplotlib
-statsmodels
+plotly
 openpyxl
+pyarrow
+google-cloud-bigquery

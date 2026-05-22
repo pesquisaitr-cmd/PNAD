@@ -14,6 +14,5 @@ COPY . .
 # Expõe a porta exigida pelo Cloud Run
 EXPOSE 8080
 
-# Usa Gunicorn para rodar o Flask
-# "app:app" significa: arquivo app.py e objeto Flask chamado app
-CMD ["gunicorn", "-b", "0.0.0.0:8080", "app:app"]
+# Comando para rodar o Streamlit configurado para a porta do Cloud Run
+CMD ["streamlit", "run", "app.py", "--server.port=8080", "--server.address=0.0.0.0"]

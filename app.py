@@ -59,9 +59,16 @@ try:
     @st.cache_data(ttl=86400)  # Cache de 24h para os filtros estruturais
     def obter_valores_filtro(coluna, condicao_sql=""):
         """Busca valores únicos de uma coluna para preencher a barra lateral"""
-        # Remove crases que possam vir na string para não duplicar
         coluna_limpa = coluna.replace("`", "")
-        query = f"SELECT DISTINCT `{coluna_limpa}` FROM `{VIEW_ID}` {condicao_sql} WHERE `{coluna_limpa}` IS NOT NULL ORDER BY `{coluna_limpa}`"
+        
+        # Se houver uma condição externa (como a escolha da UF), nós a tratamos
+        if condicao_sql.strip():
+            # Se a condição externa já começa com WHERE, adicionamos o resto com AND
+            query = f"SELECT DISTINCT `{coluna_limpa}` FROM `{VIEW_ID}` {condicao_sql} AND `{coluna_limpa}` IS NOT NULL ORDER BY `{coluna_limpa}`"
+        else:
+            # Caso contrário, usamos o WHERE padrão
+            query = f"SELECT DISTINCT `{coluna_limpa}` FROM `{VIEW_ID}` WHERE `{coluna_limpa}` IS NOT NULL ORDER BY `{coluna_limpa}`"
+            
         df = executar_query(query)
         return df[coluna_limpa].tolist()
 

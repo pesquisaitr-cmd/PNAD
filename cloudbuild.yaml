@@ -6,7 +6,7 @@ steps:
       - -t
       - gcr.io/$PROJECT_ID/pnad-app:latest
       - -f
-      - dockerfile
+      - Dockerfile
       - .
 
   # Etapa 2: Push da imagem para o Artifact Registry
@@ -38,5 +38,3 @@ logsBucket: gs://1043829155645-southamerica-east1-cloudbuild-logs
 
 options:
   logging: LEGACY
-
-  

@@ -189,9 +189,24 @@ try:
         df_filtrado["genero"] = df_filtrado["sexo"].map(mapa_sexo)
         df_filtrado["etnia"] = df_filtrado["raçacor"].map(mapa_raca)
         
-        # Cálculo do salário deflacionado pelo INPC direto no Python usando o inpc da view
-        # Nota: Se o inpc vier nulo ou zerado, tratamos para evitar divisão por zero
-        df_filtrado["inpc_fator"] = 1 + df_filtrado["inpc"].fillna(0) / 100
+        # -------------------------------------------------------------------------
+        # AJUSTE SEGURO PARA ENCONTRAR O INPC:
+        # Procuramos se existe alguma coluna que contém 'inpc' (independente de maiúscula/minúscula)
+        # -------------------------------------------------------------------------
+        coluna_inpc_real = None
+        for col in df_filtrado.columns:
+            if "inpc" in col.lower():
+                coluna_inpc_real = col
+                break
+        
+        # Se encontramos a coluna (ex: 'INPC' ou 'valor_inpc'), usamos ela para o cálculo
+        if coluna_inpc_real:
+            df_filtrado["inpc_fator"] = 1 + df_filtrado[coluna_inpc_real].fillna(0) / 100
+        else:
+            # Se REALMENTE não existir nenhuma coluna de INPC na View, evitamos o erro criando uma coluna zerada
+            st.warning("⚠️ Atenção: A coluna de INPC não foi encontrada na sua View do BigQuery. O cálculo deflacionado usará o valor padrão.")
+            df_filtrado["inpc_fator"] = 1.0
+            
         df_filtrado["Sal_def_INPC"] = df_filtrado["salário"] / df_filtrado["inpc_fator"]
         df_filtrado["Anomes"] = df_filtrado["competênciamov"].astype(str)
 

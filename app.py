@@ -258,8 +258,8 @@ try:
         else: st.info("Sem dados para este período.")
     with tab5:
         if not df_filtrado.empty:
-            comparativo = df_filtrado.groupby("contrato", as_index=False).agg(salario=("salário", "mean"), quantidade=("contrato", "size"))
-            fig = go.Figure([go.Bar(x=comparativo["contrato"], y=comparativo["quantidade"], name="Quantidade"), go.Scatter(x=comparativo["contrato"], y=comparativo["salário"], mode="lines+markers", name="Salário médio", yaxis="y2")])
+            comparativo = df_filtrado.groupby("contrato", as_index=False).agg(salario_medio=("salário", "mean"), quantidade=("contrato", "size"))
+            fig = go.Figure([go.Bar(x=comparativo["contrato"], y=comparativo["quantidade"], name="Quantidade"), go.Scatter(x=comparativo["contrato"], y=comparativo["salario_medio"], mode="lines+markers", name="Salário médio", yaxis="y2")])
             fig.update_layout(yaxis=dict(title="Quantidade"), yaxis2=dict(title="Salário médio (R$)", overlaying="y", side="right"))
             st.plotly_chart(fig, use_container_width=True)
         else: st.info("Sem dados para este período.")

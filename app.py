@@ -68,12 +68,18 @@ try:
 
     # O nome deve vir de uma coluna de município, nunca da coluna CBO.
     COLUNA_MUNICIPIO_NOME = coluna_existente([
-        "nome_municipio", "nome_município", "municipio_nome", "município_nome",
-        "nomemunicipio", "nome do município", "nome_municipio_ibge",
+    "município", "municipio", "nome_municipio", "nome_município", 
+    "municipio_nome", "município_nome", "nomemunicipio", 
+    "nome do município", "nome_municipio_ibge"
     ])
-    COLUNA_MUNICIPIO_CODIGO = coluna_existente(["município", "municipio", "cod_municipio", "codigo_municipio"])
-    COLUNA_MUNICIPIO = COLUNA_MUNICIPIO_NOME or COLUNA_MUNICIPIO_CODIGO
 
+    COLUNA_MUNICIPIO_CODIGO = coluna_existente([
+    "município", "municipio", "cod_municipio", "codigo_municipio", "cd_mun"
+    ])
+
+    COLUNA_MUNICIPIO = COLUNA_MUNICIPIO_NOME or COLUNA_MUNICIPIO_CODIGO
+    
+    
     if not COLUNA_MUNICIPIO:
         raise RuntimeError("A view não possui uma coluna de município reconhecível.")
 

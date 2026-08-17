@@ -35,7 +35,9 @@ try:
     st.title("📊 Dashboard Interativo PNAD/CAGED")
     st.markdown("**Análise de salários, movimentação e diversidade no mercado de trabalho brasileiro**")
 
-    @st.cache_data(ttl=3600)
+    # Não aplicar st.cache_data diretamente nesta função: objetos de parâmetros
+    # do BigQuery podem conter referências não serializáveis (funções internas),
+    # causando o erro "TypeError: cannot pickle 'function' object".
     def executar_query(query, params=None):
         """Executa uma consulta parametrizada no BigQuery e retorna um DataFrame."""
         job_config = bigquery.QueryJobConfig(query_parameters=params or [])
@@ -67,9 +69,15 @@ try:
         return None
 
     # O nome deve vir de uma coluna de município, nunca da coluna CBO.
-    COLUNA_MUNICIPIO_NOME = "município"
-    COLUNA_MUNICIPIO_CODIGO = "município"
-    COLUNA_MUNICIPIO = "município"
+    COLUNA_MUNICIPIO_NOME = coluna_existente([
+        "nome_municipio", "nome_município", "municipio_nome", "município_nome",
+        "nomemunicipio", "nome do município", "nome_municipio_ibge",
+    ])
+    COLUNA_MUNICIPIO_CODIGO = coluna_existente(["município", "municipio", "cod_municipio", "codigo_municipio"])
+    COLUNA_MUNICIPIO = COLUNA_MUNICIPIO_NOME or COLUNA_MUNICIPIO_CODIGO
+
+    if not COLUNA_MUNICIPIO:
+        raise RuntimeError("A view não possui uma coluna de município reconhecível.")
 
     @st.cache_data(ttl=86400)
     def obter_valores_filtro(coluna, condicao_sql=""):

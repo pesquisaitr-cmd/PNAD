@@ -292,7 +292,7 @@ try:
             st.download_button("Download Excel", buffer.getvalue(), file_name="dados_pnad.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
     st.markdown("---")
-    st.markdown("<div style='text-align:center;color:gray;font-size:12px'><p>Dashboard PNAD/CAGED | Desenvolvido por Professor Dulluca | 2026</p></div>", unsafe_allow_html=True)
+    st.markdown("<div style='text-align:center;color:gray;font-size:12px'><p>Dashboard PNAD/CAGED | 2026</p></div>", unsafe_allow_html=True)
 
 except Exception:
     st.error("❌ Erro ao executar o app:")
